@@ -167,9 +167,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         InputImage image = InputImage.fromBitmap(mSelectedImage, 0);
         FaceDetectorOptions options =
                 new FaceDetectorOptions.Builder()
-                        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+                        //.setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
                         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+                        //.setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
                         .build();
 
         mFaceButton.setEnabled(false);

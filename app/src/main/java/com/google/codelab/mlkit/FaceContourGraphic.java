@@ -1,5 +1,6 @@
 package com.google.codelab.mlkit;
 
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -32,6 +33,8 @@ public class FaceContourGraphic extends GraphicOverlay.Graphic {
 
   private volatile Face face;
 
+  private volatile String id;
+
   public FaceContourGraphic(GraphicOverlay overlay) {
     super(overlay);
 
@@ -57,7 +60,19 @@ public class FaceContourGraphic extends GraphicOverlay.Graphic {
    */
   public void updateFace(Face face) {
     this.face = face;
+
+    if (face.getTrackingId() != null){
+      this.id = Integer.toString(face.getTrackingId());
+    }else{
+      this.id = null;
+    }
+
+
     postInvalidate();
+  }
+
+  public void setId(String id){
+    this.id = id;
   }
 
   /** Draws the face annotations for position on the supplied canvas. */
@@ -72,7 +87,7 @@ public class FaceContourGraphic extends GraphicOverlay.Graphic {
     float x = translateX(face.getBoundingBox().centerX());
     float y = translateY(face.getBoundingBox().centerY());
     canvas.drawCircle(x, y, FACE_POSITION_RADIUS, facePositionPaint);
-    canvas.drawText("id: " + face.getTrackingId(), x + ID_X_OFFSET, y + ID_Y_OFFSET, idPaint);
+    canvas.drawText("id: " + this.id, x + ID_X_OFFSET, y + ID_Y_OFFSET, idPaint);
 
     // Draws a bounding box around the face.
     float xOffset = scaleX(face.getBoundingBox().width() / 2.0f);

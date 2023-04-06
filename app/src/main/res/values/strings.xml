@@ -5,4 +5,8 @@
     <string name="find_face_contour_button">Find face contour</string>
     <string name="find_text_cloud_button">Find text (cloud)</string>
     <string name="find_objects_button">Find objects</string>
+
+    <string name="gs_switch">Grayscale</string>
+    <string name="eq_switch">Equalise</string>
+    <string name="rot_switch">Rotate</string>
 </resources>

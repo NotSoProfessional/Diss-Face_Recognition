@@ -10,52 +10,95 @@
         android:id="@+id/image_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:contentDescription="@string/select_image_for_text_recognition"
         android:scaleType="fitStart"
-        app:layout_constraintTop_toBottomOf="parent"
         app:layout_constraintBottom_toTopOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        android:contentDescription="@string/select_image_for_text_recognition" />
+        app:layout_constraintTop_toBottomOf="parent" />
+
+    <ImageView
+        android:id="@+id/image_view_processed"
+        android:layout_width="112dp"
+        android:layout_height="112dp"
+        android:contentDescription="@string/select_image_for_text_recognition"
+        android:scaleType="fitStart"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/image_view"
+        app:layout_constraintHorizontal_bias="0.946"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="parent"
+        app:layout_constraintVertical_bias="0.26" />
+
     <com.google.codelab.mlkit.GraphicOverlay
         android:id="@+id/graphic_overlay"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
-        app:layout_constraintTop_toTopOf="@id/image_view"
+        android:layout_alignParentStart="true"
         app:layout_constraintBottom_toBottomOf="@id/image_view"
         app:layout_constraintLeft_toLeftOf="@id/image_view"
         app:layout_constraintRight_toRightOf="@id/image_view"
-        android:layout_alignParentStart="true" />
+        app:layout_constraintTop_toTopOf="@id/image_view" />
 
     <Spinner
         android:id="@+id/spinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
         android:background="@android:drawable/btn_dropdown"
         android:spinnerMode="dropdown"
-        app:layout_constraintBottom_toTopOf="@id/button_text"
+        app:layout_constraintBottom_toTopOf="@+id/button_train"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
 
     <Button
-        android:id="@+id/button_text"
-        android:layout_width="128dp"
-        android:layout_height="49dp"
-        android:editable="true"
-        android:text="@string/find_text_button"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toLeftOf="@id/button_face" />
-
-    <Button
         android:id="@+id/button_face"
-        android:layout_width="408dp"
-        android:layout_height="60dp"
+        android:layout_width="206dp"
+        android:layout_height="50dp"
         android:autoText="false"
         android:text="Find Face"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintLeft_toRightOf="@id/button_text" />
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/button_train"
+        android:layout_width="206dp"
+        android:layout_height="50dp"
+        android:text="Train/Register face(s)"
+        app:layout_constraintBottom_toBottomOf="@+id/button_face"
+        app:layout_constraintEnd_toStartOf="@+id/button_face"
+        app:layout_constraintStart_toStartOf="@+id/image_view"
+        app:layout_constraintTop_toTopOf="@+id/button_face" />
+
+    <Switch
+        android:id="@+id/gs_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="true"
+        android:text="@string/gs_switch"
+        app:layout_constraintBottom_toTopOf="@+id/eq_switch"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Switch
+        android:id="@+id/eq_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="true"
+        android:text="@string/eq_switch"
+        app:layout_constraintBottom_toTopOf="@+id/spinner"
+        app:layout_constraintStart_toStartOf="@+id/image_view" />
+
+    <Switch
+        android:id="@+id/rot_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="true"
+        android:text="@string/rot_switch"
+        app:layout_constraintBottom_toTopOf="@+id/gs_switch"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

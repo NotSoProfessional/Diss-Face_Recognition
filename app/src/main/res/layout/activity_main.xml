@@ -56,7 +56,6 @@
         android:id="@+id/button_face"
         android:layout_width="206dp"
         android:layout_height="50dp"
-        android:autoText="false"
         android:text="Find Face"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -100,5 +99,15 @@
         android:text="@string/rot_switch"
         app:layout_constraintBottom_toTopOf="@+id/gs_switch"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <Switch
+        android:id="@+id/cv_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="true"
+        android:text="@string/cv_switch"
+        app:layout_constraintBottom_toTopOf="@+id/rot_switch"
+        app:layout_constraintStart_toStartOf="@+id/image_view" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

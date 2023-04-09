@@ -15,15 +15,28 @@ limitations under the License.
 
 package com.google.codelab.mlkit.tflite;
 
+import static org.opencv.ml.Ml.ROW_SAMPLE;
+
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.RectF;
 import android.os.Trace;
 import android.util.Pair;
 
 import com.google.codelab.mlkit.env.Logger;
 
+import org.apache.commons.math3.linear.MatrixUtils;
+import org.opencv.android.Utils;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.ml.KNearest;
+import org.opencv.ml.TrainData;
+import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
 
 import java.io.BufferedReader;
@@ -36,7 +49,9 @@ import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -95,9 +110,27 @@ public class TFLiteObjectDetectionAPIModel
 // Face Mask Detector Output
   private float[][] output;
 
-  private HashMap<String, Recognition> registered = new HashMap<>();
+  private LinkedHashMap<String, Recognition> registered = new LinkedHashMap<>();
+  private Mat points = new Mat();
+  private Mat names = new Mat();
+  private ArrayList<String> nams = new ArrayList<>();
   public void register(String name, Recognition rec) {
       registered.put(name, rec);
+    //((Map.Entry<String, Recognition>) registered).getValue().get
+
+      nams.add(name);
+
+      float[] data = ((float[][]) rec.getExtra())[0];
+
+      Mat temp = new Mat(1,192, CvType.CV_32FC1);
+      temp.put(0,0,data);
+
+      points.push_back(temp);
+
+      temp = new Mat(1,1, CvType.CV_32FC1);
+      temp.put(0,0, registered.entrySet().size()-1);
+
+      names.push_back(temp);
   }
 
   private TFLiteObjectDetectionAPIModel() {}
@@ -174,21 +207,117 @@ public class TFLiteObjectDetectionAPIModel
   // and retrurns the pair <id, distance>
   private Pair<String, Float> findNearest(float[] emb) {
 
-    Pair<String, Float> ret = null;
-    for (Map.Entry<String, Recognition> entry : registered.entrySet()) {
-        final String name = entry.getKey();
-        final float[] knownEmb = ((float[][]) entry.getValue().getExtra())[0];
 
-        float distance = 0;
-        for (int i = 0; i < emb.length; i++) {
-              float diff = emb[i] - knownEmb[i];
-              distance += diff*diff;
-        }
-        distance = (float) Math.sqrt(distance);
+    /*ArrayList<float[]> points = new ArrayList<>();
+    ArrayList<String> names = new ArrayList<>();
+    Mat mat = new Mat(names.size(), 192, CvType.CV_32F);
+    registered.entrySet().parallelStream().forEach((e) -> {points.add(((float[][]) e.getValue().getExtra())[0]);
+                                                    names.add(e.getKey());});
+    registered.entrySet().parallelStream().forEach((e) -> {
+      Mat temp = new Mat(1, 192, CvType.CV_32F);
+      temp.put(0,0,((float[][]) e.getValue().getExtra())[0]);
+      mat.push_back(temp);
+    });
+
+    names.parallelStream().forEach((e) -> {
+      Mat temp = new Mat(1, 1, CvType.CV_64F);
+      temp.put(0,0,e);
+      mat.push_back(temp);
+    });
+
+    KNearest knn = KNearest.create();
+    knn.train(mat, ROW_SAMPLE, names);
+    Core.minMaxLoc(mat).;
+    mat.get*/
+
+
+    //registered.entrySet().forEach((e) -> {points.mape.getValue().getExtra()});
+
+   /* for (Map.Entry<String, Recognition> entry : registered.entrySet()) {
+      final String name = entry.getKey();
+      final float[] knownEmb = ((float[][]) entry.getValue().getExtra())[0];
+
+      float distance = 0;
+      for (int i = 0; i < emb.length; i++) {
+        float diff = emb[i] - knownEmb[i];
+        distance += diff * diff;
+      }
+      distance = (float) Math.sqrt(distance);
+      if (ret == null || distance < ret.second) {
+        ret = new Pair<>(name, distance);
+      }
+    }*/
+
+    long startTime = System.nanoTime();
+
+    // Perform some operation whose execution time you want to profile
+    // ...
+
+    // Record end time
+
+
+    // Calculate elapsed time in milliseconds
+
+boolean useCV = true;
+    Pair<String, Float> ret = null;
+
+    if(useCV){
+      /*for (Map.Entry<String, Recognition> entry : registered.entrySet()) {
+        float[] knownEmb = ((float[][]) entry.getValue().getExtra())[0];
+
+        Mat pointMat = new Mat(1, knownEmb.length, CvType.CV_32FC1);
+        pointMat.put(0,0, knownEmb);
+        Mat targetPoint = new Mat(1, emb.length, CvType.CV_32FC1);
+        targetPoint.put(0,0, emb);
+
+        float distance = (float) Core.norm(pointMat, targetPoint, Core.NORM_L2);
+
         if (ret == null || distance < ret.second) {
-            ret = new Pair<>(name, distance);
+          ret = new Pair<>(entry.getKey(), distance);
         }
+      }*/
+
+      KNearest knn = KNearest.create();
+      knn.setAlgorithmType(KNearest.BRUTE_FORCE);
+      knn.train(points, ROW_SAMPLE, names);
+
+      Mat target = new Mat(1, 192, CvType.CV_32FC1);
+      target.put(0,0, emb);
+
+      Mat results = new Mat();
+      Mat neighborResponses = new Mat();
+      Mat dists = new Mat();
+
+      knn.findNearest(target, 1, results, neighborResponses, dists);
+      int idx = (int) results.get(0,0)[0];
+      //ret = new Pair<>(nams.get(idx), (float) dists.get(0,0)[0]);
+      ret = new Pair<>(registered.keySet().toArray()[idx].toString(), (float) dists.get(0,0)[0]);
+      System.out.println("Result: " + Integer.toString((int) results.get(0,0)[0]));
     }
+
+  if (!useCV){
+    for (Map.Entry<String, Recognition> entry : registered.entrySet()) {
+      final String name = entry.getKey();
+      final float[] knownEmb = ((float[][]) entry.getValue().getExtra())[0];
+
+      float distance = 0;
+      for (int i = 0; i < emb.length; i++) {
+        float diff = emb[i] - knownEmb[i];
+        distance += diff*diff;
+      }
+      distance = (float) Math.sqrt(distance);
+      if (ret == null || distance < ret.second) {
+        ret = new Pair<>(name, distance);
+      }
+    }
+  }
+
+
+    long endTime = System.nanoTime();
+
+    long elapsedTime = endTime - startTime;
+
+    System.out.println("Prediction time: " + elapsedTime + " [ns]");
 
     return ret;
 
@@ -281,6 +410,7 @@ public class TFLiteObjectDetectionAPIModel
 
     Trace.endSection();
     return recognitions;
+
   }
 
   @Override
@@ -298,4 +428,7 @@ public class TFLiteObjectDetectionAPIModel
     if (tfLite != null) tfLite.setNumThreads(num_threads);
   }
 
+  public Long getInferenceTime(){
+    return tfLite.getLastNativeInferenceDurationNanoseconds();
+  }
 }

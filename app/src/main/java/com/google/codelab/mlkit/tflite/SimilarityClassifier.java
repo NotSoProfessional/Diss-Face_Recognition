@@ -18,6 +18,8 @@ package com.google.codelab.mlkit.tflite;
 import android.graphics.Bitmap;
 import android.graphics.RectF;
 
+import androidx.annotation.NonNull;
+
 import java.util.List;
 
 /** Generic interface for interacting with different recognition engines. */
@@ -35,8 +37,10 @@ public interface SimilarityClassifier {
 
   void setNumThreads(int num_threads);
 
+  Long getInferenceTime();
+
   /** An immutable result returned by a Classifier describing what was recognized. */
-  public class Recognition {
+  class Recognition {
     /**
      * A unique identifier for what has been recognized. Specific to the class, not the instance of
      * the object.
@@ -99,6 +103,7 @@ public interface SimilarityClassifier {
       this.location = location;
     }
 
+    @NonNull
     @Override
     public String toString() {
       String resultString = "";

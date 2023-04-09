@@ -9,4 +9,5 @@
     <string name="gs_switch">Grayscale</string>
     <string name="eq_switch">Equalise</string>
     <string name="rot_switch">Rotate</string>
+    <string name="cv_switch">OpenCV pre-processing</string>
 </resources>

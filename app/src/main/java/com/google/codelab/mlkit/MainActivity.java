@@ -65,6 +65,15 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.commons.math3.linear.*;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.features2d.DescriptorMatcher;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.ml.KNearest;
+import org.opencv.ml.Ml;
+
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
     private static final String TAG = "MainActivity";
     private static final Logger LOGGER = new Logger();
@@ -72,9 +81,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private ImageView mImageViewProcessed;
     private Button mFaceButton;
     private Button mTrainButton;
-    private Switch mGsSwitch;
-    private Switch mRotSwitch;
-    private Switch mEqSwitch;
+    private Switch mGsSwitch, mRotSwitch, mEqSwitch, mCVSwitch;
     private Bitmap mSelectedImage;
     private GraphicOverlay mGraphicOverlay;
     // Max width (portrait mode)
@@ -101,9 +108,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     private static boolean train = false;
 
-    private static boolean grayscale = true;
-    private static boolean equalised = true;
-    private static boolean rot_align = true;
 
     private enum DetectorMode {
         TF_OD_API;
@@ -120,6 +124,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         mGsSwitch = findViewById(R.id.gs_switch);
         mRotSwitch = findViewById(R.id.rot_switch);
         mEqSwitch = findViewById(R.id.eq_switch);
+        mCVSwitch = findViewById(R.id.cv_switch);
 
         mFaceButton = findViewById(R.id.button_face);
 
@@ -154,6 +159,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         dropdown.setAdapter(adapter);
         dropdown.setSelection(0);
         dropdown.setOnItemSelectedListener(this);
+
+        if (OpenCVLoader.initDebug()){
+            Log.d("LOADED", "OpenCV success");
+        }else Log.d("LOADED", "OpenCV error");
 
         try {
             detector =
@@ -190,13 +199,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         .build();
 
         mFaceButton.setEnabled(false);
+        mTrainButton.setEnabled(false);
+
         FaceDetector detector = FaceDetection.getClient(options);
         detector.process(image)
                 .addOnSuccessListener(
                         new OnSuccessListener<List<Face>>() {
                             @Override
                             public void onSuccess(List<Face> faces) {
-                                mFaceButton.setEnabled(true);
                                 processFaceContourDetectionResult(faces);
                             }
                         })
@@ -206,6 +216,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                             public void onFailure(@NonNull Exception e) {
                                 // Task failed with an exception
                                 mFaceButton.setEnabled(true);
+                                mTrainButton.setEnabled(true);
                                 e.printStackTrace();
                             }
                         });
@@ -230,19 +241,28 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
 
             //if (i==1){
-                int width = face.getBoundingBox().width();
-                int height = face.getBoundingBox().height();
-                float x = face.getBoundingBox().centerX();
-                float y = face.getBoundingBox().centerY();
-                float xOffset = width / 2.0f;
-                float yOffset = height / 2.0f;
-                float left = x - xOffset;
-                float top = y - yOffset;
+            int width = face.getBoundingBox().width();
+            int height = face.getBoundingBox().height();
+            float x = face.getBoundingBox().centerX();
+            float y = face.getBoundingBox().centerY();
+            float xOffset = width / 2.0f;
+            float yOffset = height / 2.0f;
+            float left = x - xOffset;
+            float top = y - yOffset;
 
-                Bitmap processed = mSelectedImage;
+            Bitmap processed = Bitmap.createBitmap(mSelectedImage);
 
+            Mat mat = new Mat();
 
-            if (mGsSwitch.isChecked()) {
+            if (mGsSwitch.isChecked() & mCVSwitch.isChecked() & !mEqSwitch.isChecked()) {
+                Utils.bitmapToMat(processed, mat);
+
+                Imgproc.cvtColor(mat,mat, Imgproc.COLOR_RGB2GRAY);
+
+                Utils.matToBitmap(mat, processed);
+            }
+
+            if (mGsSwitch.isChecked() & !mCVSwitch.isChecked()) {
                 Bitmap bm_grayscale = Bitmap.createBitmap(mSelectedImage.getWidth(), mSelectedImage.getHeight(), Bitmap.Config.ARGB_8888);
 
                 Canvas canvas = new Canvas(bm_grayscale);
@@ -258,7 +278,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
             if (mRotSwitch.isChecked()){
 
-                Bitmap rotated = Bitmap.createBitmap(mSelectedImage.getWidth(), mSelectedImage.getHeight(), Bitmap.Config.ARGB_8888);
+                Bitmap rotated = Bitmap.createBitmap(processed.getWidth(), processed.getHeight(), Bitmap.Config.ARGB_8888);
 
                 Canvas canvas = new Canvas(rotated);
                 Paint drawPaint = new Paint();
@@ -279,8 +299,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             // Crop image to face
             processed = Bitmap.createBitmap(processed, (int) left, (int) top, width, height);
 
+            if (mEqSwitch.isChecked() & mCVSwitch.isChecked()){
+                Utils.bitmapToMat(processed,mat);
+                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
+                Imgproc.equalizeHist(mat, mat);
+                Utils.matToBitmap(mat, processed);
+            }
 
-            if (mEqSwitch.isChecked()){
+            if (mEqSwitch.isChecked() & !mCVSwitch.isChecked()){
                 // Compute the histogram of the grayscale image
                 int[] histogram = new int[256];
                 for (int x_i = 0; x_i < processed.getWidth(); x_i++) {
@@ -342,6 +368,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         detector.register(Integer.toString(randomNum), detector.recognizeImage(resized, true).get(0));
                         faceGraphic.setId(Integer.toString(randomNum));
 
+
                     } else {
                         for (SimilarityClassifier.Recognition rec : results){
                             float distance = rec.getDistance();
@@ -365,8 +392,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
            // }
         }
 
+        Long infer_time = detector.getInferenceTime();
+
+        Log.d("NSP debug: ", Long.toString(infer_time) + " [ns]");
+
         train = false;
 
+        mFaceButton.setEnabled(true);
+        mTrainButton.setEnabled(true);
     }
 
     private void showToast(String message) {

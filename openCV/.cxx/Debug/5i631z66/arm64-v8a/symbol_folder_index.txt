@@ -1,0 +1,1 @@
+C:\Users\georg\StudioProjects\Face_Detection\openCV\build\intermediates\cxx\Debug\5i631z66\obj\arm64-v8a

@@ -4,7 +4,7 @@ android {
     compileSdkVersion 31
     defaultConfig {
         applicationId "com.google.codelab.mlkit"
-        minSdkVersion 19
+        minSdkVersion 24
         targetSdkVersion 31
         versionCode 1
         versionName "1.0"
@@ -37,6 +37,7 @@ dependencies {
     implementation 'org.tensorflow:tensorflow-lite-metadata:0.1.0'
     implementation 'org.apache.commons:commons-math3:3.6.1'
     implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
+    implementation project(path: ':openCV')
     testImplementation 'junit:junit:4.13'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'

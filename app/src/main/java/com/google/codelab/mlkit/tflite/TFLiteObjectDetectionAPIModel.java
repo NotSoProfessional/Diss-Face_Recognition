@@ -23,6 +23,7 @@ import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.graphics.RectF;
 import android.os.Trace;
+import android.util.Log;
 import android.util.Pair;
 
 import com.google.codelab.mlkit.env.Logger;
@@ -38,6 +39,9 @@ import org.opencv.ml.KNearest;
 import org.opencv.ml.TrainData;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.gpu.*;
+import org.tensorflow.lite.gpu.CompatibilityList;
+import org.tensorflow.lite.support.model.Model;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -101,24 +105,26 @@ public class TFLiteObjectDetectionAPIModel
   // contains the number of detected boxes
   private float[] numDetections;
 
-  private float[][] embeedings;
+  private AssetManager assetManager;
+  private String modelFilename;
+  private boolean useGPU;
+
+  private static float[][] embeedings;
 
   private ByteBuffer imgData;
 
   private Interpreter tfLite;
 
-// Face Mask Detector Output
-  private float[][] output;
 
-  private LinkedHashMap<String, Recognition> registered = new LinkedHashMap<>();
-  private Mat points = new Mat();
-  private Mat names = new Mat();
-  private ArrayList<String> nams = new ArrayList<>();
+  private static LinkedHashMap<String, Recognition> registered = new LinkedHashMap<>();
+  private static Mat points = new Mat();
+  private static Mat names = new Mat();
+  //private  ArrayList<String> nams = new ArrayList<>();
   public void register(String name, Recognition rec) {
       registered.put(name, rec);
     //((Map.Entry<String, Recognition>) registered).getValue().get
 
-      nams.add(name);
+      //nams.add(name);
 
       float[] data = ((float[][]) rec.getExtra())[0];
 
@@ -160,7 +166,10 @@ public class TFLiteObjectDetectionAPIModel
       final String modelFilename,
       final String labelFilename,
       final int inputSize,
-      final boolean isQuantized)
+      final boolean isQuantized,
+      final boolean useNNAPI,
+      final boolean useGPU,
+      final boolean useXXNPack)
       throws IOException {
 
     final TFLiteObjectDetectionAPIModel d = new TFLiteObjectDetectionAPIModel();
@@ -177,11 +186,9 @@ public class TFLiteObjectDetectionAPIModel
 
     d.inputSize = inputSize;
 
-    try {
-      d.tfLite = new Interpreter(loadModelFile(assetManager, modelFilename));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    d.InitModel(assetManager, modelFilename, useNNAPI, useGPU, useXXNPack);
+    d.modelFilename = modelFilename;
+    d.assetManager = assetManager;
 
     d.isModelQuantized = isQuantized;
     // Pre-allocate buffers.
@@ -195,68 +202,59 @@ public class TFLiteObjectDetectionAPIModel
     d.imgData.order(ByteOrder.nativeOrder());
     d.intValues = new int[d.inputSize * d.inputSize];
 
-    d.tfLite.setNumThreads(NUM_THREADS);
+    //d.tfLite.setNumThreads(NUM_THREADS);
     d.outputLocations = new float[1][NUM_DETECTIONS][4];
     d.outputClasses = new float[1][NUM_DETECTIONS];
     d.outputScores = new float[1][NUM_DETECTIONS];
     d.numDetections = new float[1];
+
     return d;
+  }
+
+  public void InitModel(final AssetManager assetManager,
+                         final String modelFilename,
+                         final boolean useNNAPI,
+                         final boolean useGPU,
+                        final boolean useXXNPACK){
+    Interpreter.Options opts = new Interpreter.Options();
+
+
+    CompatibilityList compatList = new CompatibilityList();
+
+      if (compatList.isDelegateSupportedOnThisDevice() & useGPU) {
+        // if the device has a supported GPU, add the GPU delegate
+        opts.setUseNNAPI(false);
+
+        GpuDelegate.Options delegateOptions = compatList.getBestOptionsForThisDevice();
+
+        //delegateOptions.setInferencePreference(GpuDelegate.Options.INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER);
+        delegateOptions.setPrecisionLossAllowed(true);
+        GpuDelegate gpuDelegate = new GpuDelegate(delegateOptions);
+        opts.addDelegate(gpuDelegate);
+        Log.d("NSP debug", "Using GPU!");
+      } else {
+        // if the GPU is not supported, run on 4 threads
+        opts.setUseNNAPI(useNNAPI);
+        opts.setUseXNNPACK(useXXNPACK);
+        opts.setNumThreads(4);
+        Log.d("NSP debug", "Using NNAPI: " + useNNAPI + " Using XNNPack: " + useXXNPACK);
+      }
+
+
+
+    try {
+      tfLite = new Interpreter(loadModelFile(assetManager, modelFilename), opts);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   // looks for the nearest embeeding in the dataset (using L2 norm)
   // and retrurns the pair <id, distance>
   private Pair<String, Float> findNearest(float[] emb) {
 
-
-    /*ArrayList<float[]> points = new ArrayList<>();
-    ArrayList<String> names = new ArrayList<>();
-    Mat mat = new Mat(names.size(), 192, CvType.CV_32F);
-    registered.entrySet().parallelStream().forEach((e) -> {points.add(((float[][]) e.getValue().getExtra())[0]);
-                                                    names.add(e.getKey());});
-    registered.entrySet().parallelStream().forEach((e) -> {
-      Mat temp = new Mat(1, 192, CvType.CV_32F);
-      temp.put(0,0,((float[][]) e.getValue().getExtra())[0]);
-      mat.push_back(temp);
-    });
-
-    names.parallelStream().forEach((e) -> {
-      Mat temp = new Mat(1, 1, CvType.CV_64F);
-      temp.put(0,0,e);
-      mat.push_back(temp);
-    });
-
-    KNearest knn = KNearest.create();
-    knn.train(mat, ROW_SAMPLE, names);
-    Core.minMaxLoc(mat).;
-    mat.get*/
-
-
-    //registered.entrySet().forEach((e) -> {points.mape.getValue().getExtra()});
-
-   /* for (Map.Entry<String, Recognition> entry : registered.entrySet()) {
-      final String name = entry.getKey();
-      final float[] knownEmb = ((float[][]) entry.getValue().getExtra())[0];
-
-      float distance = 0;
-      for (int i = 0; i < emb.length; i++) {
-        float diff = emb[i] - knownEmb[i];
-        distance += diff * diff;
-      }
-      distance = (float) Math.sqrt(distance);
-      if (ret == null || distance < ret.second) {
-        ret = new Pair<>(name, distance);
-      }
-    }*/
-
     long startTime = System.nanoTime();
 
-    // Perform some operation whose execution time you want to profile
-    // ...
-
-    // Record end time
-
-
-    // Calculate elapsed time in milliseconds
 
 boolean useCV = true;
     Pair<String, Float> ret = null;
@@ -328,6 +326,10 @@ boolean useCV = true;
   public List<Recognition> recognizeImage(final Bitmap bitmap, boolean storeExtra) {
     // Log this method so that it can be analyzed with systrace.
     Trace.beginSection("recognizeImage");
+
+    //if (useGPU){
+    //  InitModel(assetManager, modelFilename, false, true, false);
+    //}
 
     Trace.beginSection("preprocessBitmap");
     // Preprocess the image data from 0-255 int to normalized float based
@@ -416,17 +418,23 @@ boolean useCV = true;
   @Override
   public void enableStatLogging(final boolean logStats) {}
 
-  @Override
-  public String getStatString() {
-    return "";
-  }
 
   @Override
   public void close() {}
 
   public void setNumThreads(int num_threads) {
-    if (tfLite != null) tfLite.setNumThreads(num_threads);
+    //if (tfLite != null) tfLite.setNumThreads(num_threads);
   }
+
+  public void ReInitModel(final AssetManager assetManager,
+                        final String modelFilename,
+                        final boolean useNNAPI,
+                        final boolean useGPU,
+                          final boolean useXNNPack) {
+    this.useGPU = useGPU;
+    InitModel(assetManager, modelFilename, useNNAPI, useGPU, useXNNPack);
+  }
+
 
   public Long getInferenceTime(){
     return tfLite.getLastNativeInferenceDurationNanoseconds();

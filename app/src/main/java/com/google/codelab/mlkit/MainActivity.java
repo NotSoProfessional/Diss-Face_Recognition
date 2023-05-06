@@ -14,6 +14,13 @@
 
 package com.google.codelab.mlkit;
 
+/*import static org.bytedeco.opencv.global.opencv_core.CV_32SC1;
+import static org.bytedeco.opencv.global.opencv_core.CV_8UC4;
+import static org.bytedeco.opencv.global.opencv_imgcodecs.IMREAD_GRAYSCALE;
+import static org.bytedeco.opencv.global.opencv_imgcodecs.imdecode;
+import static org.bytedeco.opencv.global.opencv_imgproc.CV_RGBA2GRAY;
+import static org.bytedeco.opencv.global.opencv_imgproc.cvtColor;*/
+
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
@@ -24,17 +31,23 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.hardware.Camera;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
 import android.view.View;
+import android.webkit.ConsoleMessage;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.Switch;
@@ -50,13 +63,11 @@ import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
-import com.google.mlkit.vision.text.Text;
-import com.google.mlkit.vision.text.TextRecognition;
-import com.google.mlkit.vision.text.TextRecognizer;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -65,14 +76,38 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.commons.math3.linear.*;
-import org.opencv.android.OpenCVLoader;
+/*//import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.javacpp.DoublePointer;
+import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.Pointer;
+import org.bytedeco.javacv.Java2DFrameConverter;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_face;
+import org.bytedeco.opencv.opencv_face.FisherFaceRecognizer;*/
+//import org.opencv.android.OpenCVLoader;
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_java;
 import org.opencv.android.Utils;
-import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.face.EigenFaceRecognizer;
+import org.opencv.face.FaceRecognizer;
+import org.opencv.face.FacemarkKazemi;
+import org.opencv.face.FacemarkLBF;
+import org.opencv.face.FisherFaceRecognizer;
 import org.opencv.features2d.DescriptorMatcher;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.ml.KNearest;
 import org.opencv.ml.Ml;
+import org.tensorflow.lite.TensorFlowLite;
+
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
     private static final String TAG = "MainActivity";
@@ -81,13 +116,18 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private ImageView mImageViewProcessed;
     private Button mFaceButton;
     private Button mTrainButton;
-    private Switch mGsSwitch, mRotSwitch, mEqSwitch, mCVSwitch;
+    private Switch mGsSwitch, mRotSwitch, mEqSwitch, mCVSwitch, mNNAPISwitch, mGPUSwitch, mXNNSwitch;
+    private EditText mNThreads;
     private Bitmap mSelectedImage;
     private GraphicOverlay mGraphicOverlay;
     // Max width (portrait mode)
     private Integer mImageMaxWidth;
     // Max height (portrait mode)
     private Integer mImageMaxHeight;
+
+    private CVFaceRecognizer cvFR;
+    //private MatVector mv = new MatVector();
+    private ArrayList<Integer> labels = new ArrayList<Integer>();
 
 
     private static final int TF_OD_API_INPUT_SIZE = 112;
@@ -108,7 +148,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     private static boolean train = false;
 
-
     private enum DetectorMode {
         TF_OD_API;
     }
@@ -125,6 +164,11 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         mRotSwitch = findViewById(R.id.rot_switch);
         mEqSwitch = findViewById(R.id.eq_switch);
         mCVSwitch = findViewById(R.id.cv_switch);
+        mNNAPISwitch = findViewById(R.id.nnapi_switch);
+        mGPUSwitch = findViewById(R.id.gpu_switch);
+        mXNNSwitch = findViewById(R.id.xnnpack_switch);
+
+        mNThreads = findViewById(R.id.nthreads_input);
 
         mFaceButton = findViewById(R.id.button_face);
 
@@ -132,10 +176,62 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         mGraphicOverlay = findViewById(R.id.graphic_overlay);
 
+        Log.d("NSP debug: ", TensorFlowLite.schemaVersion());
+        Log.d("NSP debug: ", TensorFlowLite.runtimeVersion());
+
+        mNNAPISwitch.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (mNNAPISwitch.isChecked()){
+                    mGPUSwitch.setEnabled(false);
+                    mXNNSwitch.setEnabled(false);
+
+                }else{
+                    mGPUSwitch.setEnabled(true);
+                    mXNNSwitch.setEnabled(true);
+                }
+
+                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked());
+            }
+        });
+
+        mGPUSwitch.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (mGPUSwitch.isChecked()){
+
+                    mNNAPISwitch.setEnabled(false);
+                    mXNNSwitch.setEnabled(false);
+                } else{
+                    mNNAPISwitch.setEnabled(true);
+                    mXNNSwitch.setEnabled(true);
+                }
+
+                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked());
+            }
+        });
+
+        mXNNSwitch.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (mXNNSwitch.isChecked()){
+                    mGPUSwitch.setEnabled(false);
+                    mNNAPISwitch.setEnabled(false);
+
+                }else{
+                    mGPUSwitch.setEnabled(true);
+                    mNNAPISwitch.setEnabled(true);
+                }
+
+                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked());
+            }
+        });
+
         mFaceButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 runFaceContourDetection();
+
             }
         });
 
@@ -160,9 +256,21 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         dropdown.setSelection(0);
         dropdown.setOnItemSelectedListener(this);
 
-        if (OpenCVLoader.initDebug()){
+        /*if (OpenCVLoader.initDebug()){
             Log.d("LOADED", "OpenCV success");
-        }else Log.d("LOADED", "OpenCV error");
+        }else Log.d("LOADED", "OpenCV error");*/
+
+        Loader.load(opencv_java.class);
+        org.bytedeco.opencv.global.opencv_core.setUseOpenCL(true);
+        org.opencv.core.Core.setUseIPP(true);
+        org.opencv.core.Core.setUseIPP_NotExact(true);
+        Log.d("NSP debug", "OpenCV threads: " + Integer.toString(org.opencv.core.Core.getNumThreads()));
+        org.opencv.core.Core.setNumThreads(4);
+        //Log.d("NSP debug", "OpenCV threads: " + Integer.toString(org.opencv.core.Core.getNumThreads()));
+        Log.d("NSP debug", "OpenCV OpenCL available: " + opencv_core.haveOpenCL());
+        cvFR = new CVFaceRecognizer(CVFaceRecognizer.Method.LBPH);
+
+       TensorFlowLite.init();
 
         try {
             detector =
@@ -171,7 +279,11 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                             TF_OD_API_MODEL_FILE,
                             TF_OD_API_LABELS_FILE,
                             TF_OD_API_INPUT_SIZE,
-                            TF_OD_API_IS_QUANTIZED);
+                            TF_OD_API_IS_QUANTIZED,
+                            mNNAPISwitch.isChecked(),
+                            mGPUSwitch.isChecked(),
+                            mXNNSwitch.isChecked()
+                            );
         } catch (final IOException e) {
             e.printStackTrace();
             LOGGER.e(e, "Exception initializing classifier!");
@@ -181,6 +293,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             toast.show();
             finish();
         }
+    }
+
+    private void useDelegates(boolean useNNAPI, boolean useGPU, boolean useXNNPack){
+        detector.ReInitModel(getAssets(),
+                TF_OD_API_MODEL_FILE,
+                useNNAPI,
+                useGPU,
+                useXNNPack);
     }
 
     private void trainFace(){
@@ -195,7 +315,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         //.setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
                         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
                         //.setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
-                        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                        //.setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
                         .build();
 
         mFaceButton.setEnabled(false);
@@ -207,7 +327,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         new OnSuccessListener<List<Face>>() {
                             @Override
                             public void onSuccess(List<Face> faces) {
-                                processFaceContourDetectionResult(faces);
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        processFaceContourDetectionResult(faces);
+                                    }
+                                }).start();
+                                //processFaceContourDetectionResult(faces);
+
                             }
                         })
                 .addOnFailureListener(
@@ -225,181 +352,212 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     boolean untrained = true;
 
     private void processFaceContourDetectionResult(List<Face> faces) {
+        detector.setNumThreads(4);
+
+        if (mGPUSwitch.isChecked()){
+            detector.ReInitModel(getAssets(), TF_OD_API_MODEL_FILE, false, true, false);
+        }
         // Task completed successfully
         if (faces.size() == 0) {
             showToast("No face found");
             return;
         }
+
+        ArrayList<Bitmap> processed_faces = new ArrayList<>();
+
+        //ArrayList<Thread> ts = new ArrayList<>();
+
         mGraphicOverlay.clear();
-        for (int i = 0; i < faces.size(); ++i) {
-            Face face = faces.get(i);
-            String landm = String.valueOf(face.getLandmark(0));
-            Log.d("NSP debug: ", landm);
-            FaceContourGraphic faceGraphic = new FaceContourGraphic(mGraphicOverlay);
-            mGraphicOverlay.add(faceGraphic);
-            faceGraphic.updateFace(face);
 
+        ImagePreProcessor.Options ppOptions = new ImagePreProcessor.Options();
+        ppOptions.setEqualise(mEqSwitch.isChecked());
+        ppOptions.setGrayscale(mGsSwitch.isChecked());
+        ppOptions.setRotate(mRotSwitch.isChecked());
+        ppOptions.setUseOpenCV(mCVSwitch.isChecked());
 
-            //if (i==1){
-            int width = face.getBoundingBox().width();
-            int height = face.getBoundingBox().height();
-            float x = face.getBoundingBox().centerX();
-            float y = face.getBoundingBox().centerY();
-            float xOffset = width / 2.0f;
-            float yOffset = height / 2.0f;
-            float left = x - xOffset;
-            float top = y - yOffset;
+        ImagePreProcessor imgProcessor = new ImagePreProcessor(ppOptions);
 
-            Bitmap processed = Bitmap.createBitmap(mSelectedImage);
+        for (Face face : faces) {
+            //Thread t = new Thread(new Runnable() {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
 
-            Mat mat = new Mat();
+                    Bitmap output = imgProcessor.Process(face, mSelectedImage);
 
-            if (mGsSwitch.isChecked() & mCVSwitch.isChecked() & !mEqSwitch.isChecked()) {
-                Utils.bitmapToMat(processed, mat);
+                    processed_faces.add(output);
 
-                Imgproc.cvtColor(mat,mat, Imgproc.COLOR_RGB2GRAY);
-
-                Utils.matToBitmap(mat, processed);
-            }
-
-            if (mGsSwitch.isChecked() & !mCVSwitch.isChecked()) {
-                Bitmap bm_grayscale = Bitmap.createBitmap(mSelectedImage.getWidth(), mSelectedImage.getHeight(), Bitmap.Config.ARGB_8888);
-
-                Canvas canvas = new Canvas(bm_grayscale);
-                Paint paint = new Paint();
-                ColorMatrix colorMatrix = new ColorMatrix();
-                colorMatrix.setSaturation(0); // Set saturation to 0 to convert to grayscale
-                paint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
-
-                canvas.drawBitmap(processed, 0, 0, paint);
-
-                processed = bm_grayscale;
-            }
-
-            if (mRotSwitch.isChecked()){
-
-                Bitmap rotated = Bitmap.createBitmap(processed.getWidth(), processed.getHeight(), Bitmap.Config.ARGB_8888);
-
-                Canvas canvas = new Canvas(rotated);
-                Paint drawPaint = new Paint();
-                drawPaint.setAntiAlias(false);
-                drawPaint.setFilterBitmap(false);
-
-                Matrix matrix = new Matrix();
-                matrix.setRotate(face.getHeadEulerAngleZ(), (int) x, (int) y);
-                canvas.setMatrix(matrix);
-
-                canvas.drawBitmap(processed, 0,0, drawPaint);
-
-                processed = rotated;
-
-            }
-
-
-            // Crop image to face
-            processed = Bitmap.createBitmap(processed, (int) left, (int) top, width, height);
-
-            if (mEqSwitch.isChecked() & mCVSwitch.isChecked()){
-                Utils.bitmapToMat(processed,mat);
-                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
-                Imgproc.equalizeHist(mat, mat);
-                Utils.matToBitmap(mat, processed);
-            }
-
-            if (mEqSwitch.isChecked() & !mCVSwitch.isChecked()){
-                // Compute the histogram of the grayscale image
-                int[] histogram = new int[256];
-                for (int x_i = 0; x_i < processed.getWidth(); x_i++) {
-                    for (int y_i = 0; y_i < processed.getHeight(); y_i++) {
-                        int pixel = processed.getPixel(x_i, y_i);
-                        int intensity = Color.red(pixel);
-                        histogram[intensity]++;
-                    }
+            mImageViewProcessed.post(new Runnable() {
+                @Override
+                public void run() {
+                    mImageViewProcessed.setImageBitmap(output);
                 }
-
-                // Compute the cumulative distribution function (CDF) of the histogram
-                int[] cdf = new int[256];
-                cdf[0] = histogram[0];
-                for (int j = 1; j < 256; j++) {
-                    cdf[j] = cdf[j - 1] + histogram[j];
-                }
-
-                // Compute the mapping function for each pixel intensity value
-                int numPixels = processed.getWidth() * processed.getHeight();
-                int[] mapping = new int[256];
-                for (int j = 0; j < 256; j++) {
-                    float ratio = (float) cdf[j] / numPixels;
-                    mapping[j] = (int) (ratio * 255);
-                }
-
-                // Apply the mapping function to the pixel intensities of the grayscale image
-                //Bitmap equalizedBitmap = Bitmap.createBitmap(processed.getWidth(), processed.getHeight(), Bitmap.Config.ARGB_8888);
-                //Canvas canvas2 = new Canvas(equalizedBitmap);
-                //Paint paint2 = new Paint();
-                for (int x_i = 0; x_i < processed.getWidth(); x_i++) {
-                    for (int y_i = 0; y_i < processed.getHeight(); y_i++) {
-                        int pixel = processed.getPixel(x_i, y_i);
-                        int intensity = Color.red(pixel);
-                        int equalizedIntensity = mapping[intensity];
-                        int equalizedPixel = Color.rgb(equalizedIntensity, equalizedIntensity, equalizedIntensity);
-                        //canvas2.drawPoint(x_i, y_i, paint2);
-                        processed.setPixel(x_i, y_i, equalizedPixel);
-                    }
-                }
-            }
-
-
-                Bitmap resized = Bitmap.createScaledBitmap(processed, TF_OD_API_INPUT_SIZE, TF_OD_API_INPUT_SIZE, false);
-
-                //mImageView.setImageBitmap(equalizedBitmap);
-                mImageViewProcessed.setImageBitmap(resized);
-
-                if (0==0) {
-                    List<SimilarityClassifier.Recognition> results = detector.recognizeImage(resized, false);
-
-                    if (train) {
-                        Log.d("NSP debug: ", "Registering face!");
-
-                        int randomNum = -1;
-
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                            randomNum = ThreadLocalRandom.current().nextInt(0, 1000 + 1);
-                        }
-                        detector.register(Integer.toString(randomNum), detector.recognizeImage(resized, true).get(0));
-                        faceGraphic.setId(Integer.toString(randomNum));
-
-
-                    } else {
-                        for (SimilarityClassifier.Recognition rec : results){
-                            float distance = rec.getDistance();
-                            String title = rec.getTitle();
-
-                            if (distance < 1.1){
-                                Log.d("NSP debug: ", rec.getDistance().toString());
-                                Log.d("NSP debug: ", rec.getTitle());
-                                faceGraphic.setId(rec.getTitle());
-                            }else{
-                                Log.d("NSP debug: ", "No similar face found!");
-                                faceGraphic.setId("Not recognised!");
-                            }
-                        }
-
-                    }
-
+            });
 
                 }
-                //TensorImage.fromBitmap(equalizedBitmap);
-           // }
+            }).run();
         }
 
-        Long infer_time = detector.getInferenceTime();
 
-        Log.d("NSP debug: ", Long.toString(infer_time) + " [ns]");
+        while (processed_faces.size() < faces.size());
+
+
+
+        /*//MatVector mv = new MatVector();
+
+        if ( train){
+            for (Bitmap face : processed_faces){
+                Mat mat = new Mat(face.getHeight(), face.getWidth(), CV_8UC4);
+
+// Convert Bitmap to Mat manually
+                ByteBuffer byteBuffer = ByteBuffer.allocate(face.getByteCount());
+                face.copyPixelsToBuffer(byteBuffer);
+                byteBuffer.position(0);
+                byte[] byteArray = new byte[byteBuffer.remaining()];
+                byteBuffer.get(byteArray);
+                mat.data().put(byteArray);
+
+// Convert the Mat to grayscale
+                cvtColor(mat, mat, CV_RGBA2GRAY);
+
+                mv.push_back(mat);
+            }
+        }*/
+
+
+
+
+        for (int i = 0; i < processed_faces.size(); i++){
+            Bitmap resized = processed_faces.get(i);
+            FaceContourGraphic faceGraphic = new FaceContourGraphic(mGraphicOverlay);
+            Face face = faces.get(i);
+
+            List<SimilarityClassifier.Recognition> results = detector.recognizeImage(resized, false);
+
+            if (train) {
+                Log.d("NSP debug: ", "Registering face!");
+
+                int randomNum = -1;
+                final String id;
+
+                randomNum = ThreadLocalRandom.current().nextInt(0, 1000 + 1);
+
+                id = Integer.toString(randomNum);
+
+                labels.add(randomNum);
+
+                cvFR.addFace(resized, randomNum);
+
+                detector.register(id, detector.recognizeImage(resized, true).get(0));
+                faceGraphic.setId(id);
+
+                MainActivity.super.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mGraphicOverlay.add(faceGraphic);
+                        faceGraphic.updateFace(face);
+                        faceGraphic.setId(id);
+                    }
+                });
+
+
+            } else {
+               /* IntPointer predictedLabel = new IntPointer(1);
+                DoublePointer predictedConfidence = new DoublePointer(1);
+
+                Mat mat = new Mat(resized.getHeight(), resized.getWidth(), CV_8UC4);
+
+// Convert Bitmap to Mat manually
+                ByteBuffer byteBuffer = ByteBuffer.allocate(resized.getByteCount());
+                resized.copyPixelsToBuffer(byteBuffer);
+                byteBuffer.position(0);
+                byte[] byteArray = new byte[byteBuffer.remaining()];
+                byteBuffer.get(byteArray);
+                mat.data().put(byteArray);
+
+                cvtColor(mat, mat, CV_RGBA2GRAY);*/
+
+                long startTime = System.nanoTime();
+                CVFaceRecognizer.Result result = cvFR.predict(resized);
+                long endTime = System.nanoTime();
+
+                long elapsedTime = endTime - startTime;
+
+                Log.d("NSP debug", "Fisherface: P: " + Integer.toString(result.label) + " Confidence: "+ Double.toString(result.confidence) + " Predict time: " + elapsedTime);
+
+                for (SimilarityClassifier.Recognition rec : results){
+                    float distance = rec.getDistance();
+                    String title = rec.getTitle();
+
+                    if (distance < 1.1){
+                        Log.d("NSP debug: ", rec.getDistance().toString());
+                        Log.d("NSP debug: ", rec.getTitle());
+                        faceGraphic.setId(rec.getTitle());
+
+                        MainActivity.super.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mGraphicOverlay.add(faceGraphic);
+                                faceGraphic.updateFace(face);
+                                faceGraphic.setId(rec.getTitle());
+                                //train = false;
+                            }
+                        });
+                    }else{
+                        Log.d("NSP debug: ", "No similar face found!");
+
+                        MainActivity.super.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mGraphicOverlay.add(faceGraphic);
+                                faceGraphic.updateFace(face);
+                                faceGraphic.setId("Not recognised!");
+                            }
+                        });
+                    }
+                }
+
+                Long infer_time = detector.getInferenceTime();
+                Log.d("NSP debug: ", Long.toString(infer_time) + " [ns]");
+
+            }
+        }
+
+        if (train){
+            /*int[] labelsArray = new int[labels.size()];
+
+            for (int l = 0; l < labels.size(); l++){
+                labelsArray[l] = labels.get(l);
+            }
+
+            IntPointer labelsPointer = new IntPointer(labelsArray.length);
+
+            // Set the data in the IntPointer
+            labelsPointer.put(labelsArray);
+
+            // Create a Mat object from the IntPointer
+            Mat labelsMat = new Mat(labelsArray.length, 1, CV_32SC1, new Pointer(labelsPointer));
+
+            ff.train(mv, labelsMat);*/
+
+            cvFR.train();
+
+        }
+
+
+        //while (mGraphicOverlay.getNumGraphics() < faces.size()) {
+
+       // }
 
         train = false;
 
-        mFaceButton.setEnabled(true);
-        mTrainButton.setEnabled(true);
+        MainActivity.super.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mFaceButton.setEnabled(true);
+                mTrainButton.setEnabled(true);
+            }
+        });
     }
 
     private void showToast(String message) {

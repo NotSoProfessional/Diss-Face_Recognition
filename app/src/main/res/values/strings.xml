@@ -10,4 +10,7 @@
     <string name="eq_switch">Equalise</string>
     <string name="rot_switch">Rotate</string>
     <string name="cv_switch">OpenCV pre-processing</string>
+    <string name="nnapi_switch">Use NNAPI</string>
+    <string name="gpu_switch">Use GPU</string>
+    <string name="xnnpack_switch">Use XNNPack</string>
 </resources>

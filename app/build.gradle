@@ -4,7 +4,7 @@ android {
     compileSdkVersion 31
     defaultConfig {
         applicationId "com.google.codelab.mlkit"
-        minSdkVersion 24
+        minSdkVersion 23
         targetSdkVersion 31
         versionCode 1
         versionName "1.0"
@@ -25,10 +25,63 @@ android {
     buildFeatures {
         mlModelBinding true
     }
+
+    packagingOptions {
+        /*exclude 'META-INF/services/javax.annotation.processing.Processor'
+        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/opencv/pom.properties'
+        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/opencv/pom.xml'
+        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/ffmpeg/pom.properties'
+        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/ffmpeg/pom.xml'*/
+
+        exclude 'META-INF/native-image/android-arm/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/android-arm/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/android-arm64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/android-arm64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/android-x86/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/android-x86/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/android-x86_64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/android-x86_64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/ios-x86_64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/ios-x86_64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/ios-arm64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/ios-arm64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/windows-x86/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/windows-x86/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/windows-x86_64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/windows-x86_64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/linux-x86/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/linux-x86/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/linux-x86_64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/linux-x86_64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/linux-arm64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/linux-arm64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/linux-armhf/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/linux-armhf/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/linux-ppc64le/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/linux-ppc64le/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/macosx-arm64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/macosx-arm64/jnijavacpp/reflect-config.json'
+        exclude 'META-INF/native-image/macosx-x86_64/jnijavacpp/jni-config.json'
+        exclude 'META-INF/native-image/macosx-x86_64/jnijavacpp/reflect-config.json'
+    }
 }
 
+/*configurations {
+    javacpp
+}
+
+task javacppExtract(type: Copy) {
+    dependsOn configurations.javacpp
+
+    from { configurations.javacpp.collect { zipTree(it) } }
+    include "lib/**"
+    into "$buildDir/javacpp/"
+    android.sourceSets.main.jniLibs.srcDirs += ["$buildDir/javacpp/lib/"]
+
+    tasks.getByName('preBuild').dependsOn javacppExtract
+}*/
+
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.exifinterface:exifinterface:1.2.0'
@@ -36,8 +89,11 @@ dependencies {
     implementation 'org.tensorflow:tensorflow-lite-support:0.1.0'
     implementation 'org.tensorflow:tensorflow-lite-metadata:0.1.0'
     implementation 'org.apache.commons:commons-math3:3.6.1'
-    implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
-    implementation project(path: ':openCV')
+    //implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
+    implementation 'org.tensorflow:tensorflow-lite:2.9.0'
+    //implementation 'org.tensorflow:tensorflow-lite-gpu-delegate-plugin'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.9.0'
+    implementation fileTree(dir: 'libs', include: ['*.aar', '*.jar'], exclude: [])
     testImplementation 'junit:junit:4.13'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'

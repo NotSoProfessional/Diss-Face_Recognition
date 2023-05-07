@@ -18,7 +18,7 @@ android {
     }
     packagingOptions {
         resources {
-            excludes += ['META-INF/androidx.exifinterface_exifinterface.version']
+            excludes += ['META-INF/androidx.exifinterface_exifinterface.version', 'META-INF/native-image/android-arm/jnijavacpp/jni-config.json', 'META-INF/native-image/android-arm/jnijavacpp/reflect-config.json', 'META-INF/native-image/android-arm64/jnijavacpp/jni-config.json', 'META-INF/native-image/android-arm64/jnijavacpp/reflect-config.json', 'META-INF/native-image/android-x86/jnijavacpp/jni-config.json', 'META-INF/native-image/android-x86/jnijavacpp/reflect-config.json', 'META-INF/native-image/android-x86_64/jnijavacpp/jni-config.json', 'META-INF/native-image/android-x86_64/jnijavacpp/reflect-config.json', 'META-INF/native-image/ios-x86_64/jnijavacpp/jni-config.json', 'META-INF/native-image/ios-x86_64/jnijavacpp/reflect-config.json', 'META-INF/native-image/ios-arm64/jnijavacpp/jni-config.json', 'META-INF/native-image/ios-arm64/jnijavacpp/reflect-config.json', 'META-INF/native-image/windows-x86/jnijavacpp/jni-config.json', 'META-INF/native-image/windows-x86/jnijavacpp/reflect-config.json', 'META-INF/native-image/windows-x86_64/jnijavacpp/jni-config.json', 'META-INF/native-image/windows-x86_64/jnijavacpp/reflect-config.json', 'META-INF/native-image/linux-x86/jnijavacpp/jni-config.json', 'META-INF/native-image/linux-x86/jnijavacpp/reflect-config.json', 'META-INF/native-image/linux-x86_64/jnijavacpp/jni-config.json', 'META-INF/native-image/linux-x86_64/jnijavacpp/reflect-config.json', 'META-INF/native-image/linux-arm64/jnijavacpp/jni-config.json', 'META-INF/native-image/linux-arm64/jnijavacpp/reflect-config.json', 'META-INF/native-image/linux-armhf/jnijavacpp/jni-config.json', 'META-INF/native-image/linux-armhf/jnijavacpp/reflect-config.json', 'META-INF/native-image/linux-ppc64le/jnijavacpp/jni-config.json', 'META-INF/native-image/linux-ppc64le/jnijavacpp/reflect-config.json', 'META-INF/native-image/macosx-arm64/jnijavacpp/jni-config.json', 'META-INF/native-image/macosx-arm64/jnijavacpp/reflect-config.json', 'META-INF/native-image/macosx-x86_64/jnijavacpp/jni-config.json', 'META-INF/native-image/macosx-x86_64/jnijavacpp/reflect-config.json']
         }
     }
     namespace 'com.google.codelab.mlkit'
@@ -26,44 +26,6 @@ android {
         mlModelBinding true
     }
 
-    packagingOptions {
-        /*exclude 'META-INF/services/javax.annotation.processing.Processor'
-        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/opencv/pom.properties'
-        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/opencv/pom.xml'
-        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/ffmpeg/pom.properties'
-        pickFirst  'META-INF/maven/org.bytedeco.javacpp-presets/ffmpeg/pom.xml'*/
-
-        exclude 'META-INF/native-image/android-arm/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/android-arm/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/android-arm64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/android-arm64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/android-x86/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/android-x86/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/android-x86_64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/android-x86_64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/ios-x86_64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/ios-x86_64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/ios-arm64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/ios-arm64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/windows-x86/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/windows-x86/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/windows-x86_64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/windows-x86_64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/linux-x86/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/linux-x86/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/linux-x86_64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/linux-x86_64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/linux-arm64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/linux-arm64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/linux-armhf/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/linux-armhf/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/linux-ppc64le/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/linux-ppc64le/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/macosx-arm64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/macosx-arm64/jnijavacpp/reflect-config.json'
-        exclude 'META-INF/native-image/macosx-x86_64/jnijavacpp/jni-config.json'
-        exclude 'META-INF/native-image/macosx-x86_64/jnijavacpp/reflect-config.json'
-    }
 }
 
 /*configurations {
@@ -99,8 +61,6 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 
     // Face features
-    implementation 'com.google.mlkit:face-detection:16.0.0'
-
-    // Text features
-    implementation 'com.google.android.gms:play-services-mlkit-text-recognition:16.0.0'
+    //implementation 'com.google.mlkit:face-detection:16.0.0'
+    implementation 'com.google.mlkit:face-detection:16.1.5'
 }

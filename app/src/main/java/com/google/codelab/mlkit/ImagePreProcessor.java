@@ -14,6 +14,8 @@ import com.google.mlkit.vision.face.Face;
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Range;
 import org.opencv.imgproc.Imgproc;
 
 public class ImagePreProcessor {
@@ -66,7 +68,7 @@ public class ImagePreProcessor {
             processed = bm_grayscale;
         }
 
-        if (options.rotate){
+        if (options.rotate & !options.useOpenCV){
 
             Bitmap rotated = Bitmap.createBitmap(processed.getWidth(), processed.getHeight(), Bitmap.Config.ARGB_8888);
 
@@ -85,8 +87,34 @@ public class ImagePreProcessor {
 
         }
 
+        if (options.rotate & options.useOpenCV){
+            Utils.bitmapToMat(processed, mat);
+            Point rotPoint = new Point(x, y);
+            Mat rotMat  = Imgproc.getRotationMatrix2D(rotPoint, face.getHeadEulerAngleZ(), 1);
+            Imgproc.warpAffine(mat, mat, rotMat, mat.size());
+
+            Utils.matToBitmap(mat, processed);
+        }
+
         // Crop image to face
-        processed = Bitmap.createBitmap(processed, (int) left, (int) top, width, height);
+        if (!options.useOpenCV){
+            processed = Bitmap.createBitmap(processed, (int) left, (int) top, width, height);
+        }
+
+        if (options.useOpenCV){
+            Utils.bitmapToMat(processed, mat);
+
+            int lefti = (int) left;
+            int topi = (int) top;
+
+            int righti = (int) (left+width);
+            int bottomi = (int) (top+height);
+
+            Mat cropped = mat.submat(topi, bottomi, lefti, righti);
+
+            Utils.matToBitmap(cropped, processed);
+        }
+
 
         if (options.useOpenCV & options.equalise & !options.grayscale){
             Utils.bitmapToMat(processed, mat);

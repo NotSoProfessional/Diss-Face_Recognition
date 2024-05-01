@@ -1,3 +1,0 @@
-C:/Users/georg/StudioProjects/Face_Detection/openCV/.cxx/Debug/5i631z66/armeabi-v7a/CMakeFiles/opencv_jni_shared.dir
-C:/Users/georg/StudioProjects/Face_Detection/openCV/.cxx/Debug/5i631z66/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Users/georg/StudioProjects/Face_Detection/openCV/.cxx/Debug/5i631z66/armeabi-v7a/CMakeFiles/rebuild_cache.dir

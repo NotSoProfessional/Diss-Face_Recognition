@@ -1,1 +1,0 @@
-C:\Users\georg\StudioProjects\Face_Detection\openCV\build\intermediates\cxx\Debug\q1jy4855\obj\x86_64

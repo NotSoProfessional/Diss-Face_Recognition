@@ -92,6 +92,16 @@
         app:layout_constraintStart_toStartOf="@+id/image_view" />
 
     <Switch
+        android:id="@+id/blur_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="true"
+        android:text="@string/blur_switch"
+        app:layout_constraintBottom_toTopOf="@+id/spinner"
+        app:layout_constraintStart_toEndOf="@+id/eq_switch" />
+
+    <Switch
         android:id="@+id/rot_switch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -152,7 +162,15 @@
         android:layout_height="wrap_content"
         android:ems="10"
         android:inputType="number"
-        tools:layout_editor_absoluteX="171dp"
-        tools:layout_editor_absoluteY="441dp" />
+        tools:layout_editor_absoluteX="116dp"
+        tools:layout_editor_absoluteY="343dp" />
+
+    <Button
+        android:id="@+id/bench_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/benchmark"
+        app:layout_constraintBottom_toTopOf="@+id/image_view_processed"
+        app:layout_constraintEnd_toEndOf="@+id/image_view" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -34,14 +34,16 @@ public interface SimilarityClassifier {
 
   void close();
 
-  void setNumThreads(int num_threads);
+  //void setNumThreads(int num_threads);
 
   Long getInferenceTime();
+
+  Long getPredictTime();
 
   void ReInitModel(final AssetManager assetManager,
                    final String modelFilename,
                    final boolean useNNAPI,
-                   final boolean useGPU, boolean useXNNPack);
+                   final boolean useGPU, boolean useXNNPack, int numThreads);
 
   /** An immutable result returned by a Classifier describing what was recognized. */
   class Recognition {

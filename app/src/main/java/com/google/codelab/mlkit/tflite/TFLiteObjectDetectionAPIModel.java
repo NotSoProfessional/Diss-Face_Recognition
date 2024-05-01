@@ -120,6 +120,9 @@ public class TFLiteObjectDetectionAPIModel
   private static Mat points = new Mat();
   private static Mat names = new Mat();
   //private  ArrayList<String> nams = new ArrayList<>();
+
+  private long predict = 0;
+
   public void register(String name, Recognition rec) {
       registered.put(name, rec);
     //((Map.Entry<String, Recognition>) registered).getValue().get
@@ -169,7 +172,8 @@ public class TFLiteObjectDetectionAPIModel
       final boolean isQuantized,
       final boolean useNNAPI,
       final boolean useGPU,
-      final boolean useXXNPack)
+      final boolean useXXNPack,
+      final int numThreads)
       throws IOException {
 
     final TFLiteObjectDetectionAPIModel d = new TFLiteObjectDetectionAPIModel();
@@ -186,7 +190,7 @@ public class TFLiteObjectDetectionAPIModel
 
     d.inputSize = inputSize;
 
-    d.InitModel(assetManager, modelFilename, useNNAPI, useGPU, useXXNPack);
+    d.InitModel(assetManager, modelFilename, useNNAPI, useGPU, useXXNPack, numThreads);
     d.modelFilename = modelFilename;
     d.assetManager = assetManager;
 
@@ -215,28 +219,30 @@ public class TFLiteObjectDetectionAPIModel
                          final String modelFilename,
                          final boolean useNNAPI,
                          final boolean useGPU,
-                        final boolean useXXNPACK){
+                        final boolean useXXNPACK,
+                        int numThreads){
     Interpreter.Options opts = new Interpreter.Options();
 
 
     CompatibilityList compatList = new CompatibilityList();
 
       if (compatList.isDelegateSupportedOnThisDevice() & useGPU) {
-        // if the device has a supported GPU, add the GPU delegate
+        // If the device has a supported GPU, add the GPU delegate
         opts.setUseNNAPI(false);
 
         GpuDelegate.Options delegateOptions = compatList.getBestOptionsForThisDevice();
 
-        //delegateOptions.setInferencePreference(GpuDelegate.Options.INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER);
         delegateOptions.setPrecisionLossAllowed(true);
+
         GpuDelegate gpuDelegate = new GpuDelegate(delegateOptions);
         opts.addDelegate(gpuDelegate);
+
         Log.d("NSP debug", "Using GPU!");
       } else {
-        // if the GPU is not supported, run on 4 threads
+        // If the GPU is not supported, run on CPU
         opts.setUseNNAPI(useNNAPI);
         opts.setUseXNNPACK(useXXNPACK);
-        opts.setNumThreads(4);
+        opts.setNumThreads(numThreads);
         Log.d("NSP debug", "Using NNAPI: " + useNNAPI + " Using XNNPack: " + useXXNPACK);
       }
 
@@ -256,24 +262,10 @@ public class TFLiteObjectDetectionAPIModel
     long startTime = System.nanoTime();
 
 
-boolean useCV = true;
+boolean useCV = false;
     Pair<String, Float> ret = null;
 
     if(useCV){
-      /*for (Map.Entry<String, Recognition> entry : registered.entrySet()) {
-        float[] knownEmb = ((float[][]) entry.getValue().getExtra())[0];
-
-        Mat pointMat = new Mat(1, knownEmb.length, CvType.CV_32FC1);
-        pointMat.put(0,0, knownEmb);
-        Mat targetPoint = new Mat(1, emb.length, CvType.CV_32FC1);
-        targetPoint.put(0,0, emb);
-
-        float distance = (float) Core.norm(pointMat, targetPoint, Core.NORM_L2);
-
-        if (ret == null || distance < ret.second) {
-          ret = new Pair<>(entry.getKey(), distance);
-        }
-      }*/
 
       KNearest knn = KNearest.create();
       knn.setAlgorithmType(KNearest.BRUTE_FORCE);
@@ -316,11 +308,12 @@ boolean useCV = true;
     long elapsedTime = endTime - startTime;
 
     System.out.println("Prediction time: " + elapsedTime + " [ns]");
+    predict = elapsedTime;
+
 
     return ret;
 
   }
-
 
   @Override
   public List<Recognition> recognizeImage(final Bitmap bitmap, boolean storeExtra) {
@@ -331,7 +324,7 @@ boolean useCV = true;
     //  InitModel(assetManager, modelFilename, false, true, false);
     //}
 
-    Trace.beginSection("preprocessBitmap");
+    Trace.beginSection("normaliseBitmap");
     // Preprocess the image data from 0-255 int to normalized float based
     // on the provided parameters.
     bitmap.getPixels(intValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
@@ -422,21 +415,26 @@ boolean useCV = true;
   @Override
   public void close() {}
 
-  public void setNumThreads(int num_threads) {
-    //if (tfLite != null) tfLite.setNumThreads(num_threads);
-  }
-
   public void ReInitModel(final AssetManager assetManager,
                         final String modelFilename,
                         final boolean useNNAPI,
                         final boolean useGPU,
-                          final boolean useXNNPack) {
+                          final boolean useXNNPack,
+                          int numThreads) {
     this.useGPU = useGPU;
-    InitModel(assetManager, modelFilename, useNNAPI, useGPU, useXNNPack);
+    InitModel(assetManager, modelFilename, useNNAPI, useGPU, useXNNPack, numThreads);
   }
 
 
   public Long getInferenceTime(){
     return tfLite.getLastNativeInferenceDurationNanoseconds();
+  }
+
+  public Long getPredictTime(){
+    return predict;
+  }
+
+  public class Options{
+
   }
 }

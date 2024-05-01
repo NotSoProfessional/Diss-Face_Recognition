@@ -1,3 +1,0 @@
-C:/Users/georg/StudioProjects/Face_Detection/openCV/.cxx/Debug/q1jy4855/x86_64/CMakeFiles/opencv_jni_shared.dir
-C:/Users/georg/StudioProjects/Face_Detection/openCV/.cxx/Debug/q1jy4855/x86_64/CMakeFiles/edit_cache.dir
-C:/Users/georg/StudioProjects/Face_Detection/openCV/.cxx/Debug/q1jy4855/x86_64/CMakeFiles/rebuild_cache.dir

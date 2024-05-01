@@ -1,5 +1,10 @@
 package com.google.codelab.mlkit;
 
+import static org.bytedeco.opencv.global.opencv_imgproc.CV_RGBA2RGB;
+import static org.opencv.core.CvType.CV_8UC3;
+import static org.opencv.imgproc.Imgproc.cvtColor;
+
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -7,7 +12,7 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.util.Log;
+import android.os.Trace;
 
 import com.google.mlkit.vision.face.Face;
 
@@ -15,23 +20,41 @@ import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
-import org.opencv.core.Range;
+import org.opencv.core.Rect;
 import org.opencv.imgproc.Imgproc;
+
+import androidx.renderscript.Allocation;
+import androidx.renderscript.Element;
+import androidx.renderscript.RenderScript;
+import androidx.renderscript.ScriptIntrinsic;
+import androidx.renderscript.ScriptIntrinsicBlur;
+
+import androidx.renderscript.ScriptIntrinsicColorMatrix;
+import androidx.renderscript.ScriptIntrinsicHistogram;
+import androidx.renderscript.ScriptIntrinsicLUT;
+
 
 public class ImagePreProcessor {
 
     private Options options = new Options();
 
+    private long alignTime = 0;
+    private long equaliseTime = 0;
+    private long grayTime = 0;
+    private long bilateralTime = 0;
+
+    private Context mContext;
+
     public ImagePreProcessor(){}
 
-    public ImagePreProcessor(Options options){
+    public ImagePreProcessor(Options options, Context context){
         this.options = options;
+        mContext = context;
     }
 
     public Bitmap Process(Face face, Bitmap input){
 
-        String landm = String.valueOf(face.getLandmark(0));
-        Log.d("NSP debug: ", landm);
+        Trace.beginSection("Image Pre-Processing");
 
         int width = face.getBoundingBox().width();
         int height = face.getBoundingBox().height();
@@ -42,30 +65,30 @@ public class ImagePreProcessor {
         float left = x - xOffset;
         float top = y - yOffset;
 
+        if (left < 0) left = 0;
+        if (top < 0) top = 0;
+        if (left + width > input.getWidth()) width -= (left + width) - input.getWidth();
+        if (top + height > input.getHeight()) height -= (top + height) - input.getHeight();
+
         Bitmap processed = Bitmap.createBitmap(input);
 
         Mat mat = new Mat();
 
-        if (options.grayscale & options.useOpenCV & !options.equalise) {
-            Utils.bitmapToMat(processed, mat);
+        //---------------------
+        // Align
+        //---------------------
 
-            Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
+        Trace.beginSection("Alignment");
+
+        long startTime = System.nanoTime();
+
+        if (options.rotate & options.useOpenCV){
+            Utils.bitmapToMat(processed, mat);
+            Point rotPoint = new Point(x, y);
+            Mat rotMat  = Imgproc.getRotationMatrix2D(rotPoint, -face.getHeadEulerAngleZ(), 1);
+            Imgproc.warpAffine(mat, mat, rotMat, mat.size());
 
             Utils.matToBitmap(mat, processed);
-        }
-
-        if (options.grayscale & !options.useOpenCV) {
-            Bitmap bm_grayscale = Bitmap.createBitmap(input.getWidth(), input.getHeight(), Bitmap.Config.ARGB_8888);
-
-            Canvas canvas = new Canvas(bm_grayscale);
-            Paint paint = new Paint();
-            ColorMatrix colorMatrix = new ColorMatrix();
-            colorMatrix.setSaturation(0); // Set saturation to 0 to convert to grayscale
-            paint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
-
-            canvas.drawBitmap(processed, 0, 0, paint);
-
-            processed = bm_grayscale;
         }
 
         if (options.rotate & !options.useOpenCV){
@@ -87,15 +110,6 @@ public class ImagePreProcessor {
 
         }
 
-        if (options.rotate & options.useOpenCV){
-            Utils.bitmapToMat(processed, mat);
-            Point rotPoint = new Point(x, y);
-            Mat rotMat  = Imgproc.getRotationMatrix2D(rotPoint, face.getHeadEulerAngleZ(), 1);
-            Imgproc.warpAffine(mat, mat, rotMat, mat.size());
-
-            Utils.matToBitmap(mat, processed);
-        }
-
         // Crop image to face
         if (!options.useOpenCV){
             processed = Bitmap.createBitmap(processed, (int) left, (int) top, width, height);
@@ -104,17 +118,57 @@ public class ImagePreProcessor {
         if (options.useOpenCV){
             Utils.bitmapToMat(processed, mat);
 
-            int lefti = (int) left;
-            int topi = (int) top;
+            Rect face_region = new Rect((int) left, (int) top, width, height);
+            mat = new Mat(mat, face_region);
 
-            int righti = (int) (left+width);
-            int bottomi = (int) (top+height);
+            processed = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888);
 
-            Mat cropped = mat.submat(topi, bottomi, lefti, righti);
-
-            Utils.matToBitmap(cropped, processed);
+            Utils.matToBitmap(mat, processed);
         }
 
+        long endTime = System.nanoTime();
+        alignTime = endTime - startTime;
+        Trace.endSection();
+
+        //---------------------
+        // Grayscale
+        //---------------------
+
+        Trace.beginSection("RGB2Gray");
+        startTime = System.nanoTime();
+
+        if (options.grayscale & options.useOpenCV) {
+            Utils.bitmapToMat(processed, mat);
+
+            Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2GRAY);
+
+            Utils.matToBitmap(mat, processed);
+        }
+
+        if (options.grayscale & !options.useOpenCV) {
+            Bitmap bm_grayscale = Bitmap.createBitmap(processed.getWidth(), processed.getHeight(), Bitmap.Config.ARGB_8888);
+
+            Canvas canvas = new Canvas(bm_grayscale);
+            Paint paint = new Paint();
+            ColorMatrix colorMatrix = new ColorMatrix();
+            colorMatrix.setSaturation(0); // Set saturation to 0 to convert to grayscale
+            paint.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
+
+            canvas.drawBitmap(processed, 0, 0, paint);
+
+            processed = bm_grayscale;
+        }
+        endTime = System.nanoTime();
+        grayTime = endTime - startTime;
+        Trace.endSection();
+
+
+        //---------------------
+        // Equalise
+        //---------------------
+        Trace.beginSection("Equalise");
+
+        startTime = System.nanoTime();
 
         if (options.useOpenCV & options.equalise & !options.grayscale){
             Utils.bitmapToMat(processed, mat);
@@ -135,6 +189,7 @@ public class ImagePreProcessor {
         }
 
         if (options.equalise & !options.useOpenCV){
+
             // Compute the histogram of the grayscale image
             int[] histogram = new int[256];
             for (int x_i = 0; x_i < processed.getWidth(); x_i++) {
@@ -176,17 +231,76 @@ public class ImagePreProcessor {
             }
         }
 
+        endTime = System.nanoTime();
+        equaliseTime = endTime - startTime;
+        Trace.endSection();
 
-        Bitmap resized = Bitmap.createScaledBitmap(processed, 112, 112, false);
+        //---------------------
+        // Scale
+        //---------------------
 
+        Bitmap resized = Bitmap.createScaledBitmap(processed, 112, 112, true);
+
+
+        //---------------------
+        // Bilateral Filter
+        //---------------------
+
+        Trace.beginSection("Blur");
+
+        startTime = System.nanoTime();
+
+        if (options.bilateral & options.useOpenCV){
+            Utils.bitmapToMat(resized, mat);
+            Mat filtered = new Mat(112, 112, CV_8UC3);
+
+            cvtColor(mat, mat, CV_RGBA2RGB);
+
+            Imgproc.bilateralFilter(mat, filtered , 3, 100, 100);
+            Utils.matToBitmap(filtered, resized);
+        }
+
+        if (options.bilateral & !options.useOpenCV){
+            RenderScript rs = RenderScript.create(mContext);
+
+            Allocation inputAllocation = Allocation.createFromBitmap(rs, resized);
+            Allocation outputAllocation = Allocation.createFromBitmap(rs, resized);
+
+            ScriptIntrinsicBlur bilateralFilter = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
+
+            float radius = 1;
+
+            bilateralFilter.setRadius(radius);
+
+            bilateralFilter.setInput(inputAllocation);
+            bilateralFilter.forEach(outputAllocation);
+
+            outputAllocation.copyTo(resized);
+
+            inputAllocation.destroy();
+            outputAllocation.destroy();
+            rs.destroy();
+        }
+
+        endTime = System.nanoTime();
+        bilateralTime = endTime - startTime;
+        Trace.endSection();
+        Trace.endSection();
         return resized;
     }
+
+    public long getAlignTime() {return alignTime;}
+    public long getEqualiseTime() {return equaliseTime;}
+    public long getGrayTime() {return grayTime;}
+    public long getBilateralTime() {return bilateralTime;}
+
 
     public static class Options{
         boolean useOpenCV = false;
         boolean grayscale = false;
         boolean equalise = false;
         boolean rotate = false;
+        boolean bilateral = false;
 
         public void setUseOpenCV(boolean useOpenCV){
             this.useOpenCV = useOpenCV;
@@ -202,6 +316,9 @@ public class ImagePreProcessor {
 
         public void setRotate(boolean rotate){
             this.rotate = rotate;
+        }
+        public void setBilateral(boolean bilateral){
+            this.bilateral = bilateral;
         }
     }
 

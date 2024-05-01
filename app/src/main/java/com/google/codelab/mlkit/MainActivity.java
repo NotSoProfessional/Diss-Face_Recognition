@@ -14,36 +14,18 @@
 
 package com.google.codelab.mlkit;
 
-/*import static org.bytedeco.opencv.global.opencv_core.CV_32SC1;
-import static org.bytedeco.opencv.global.opencv_core.CV_8UC4;
-import static org.bytedeco.opencv.global.opencv_imgcodecs.IMREAD_GRAYSCALE;
-import static org.bytedeco.opencv.global.opencv_imgcodecs.imdecode;
-import static org.bytedeco.opencv.global.opencv_imgproc.CV_RGBA2GRAY;
-import static org.bytedeco.opencv.global.opencv_imgproc.cvtColor;*/
-
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
-import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.hardware.Camera;
-import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
 import android.view.View;
-import android.webkit.ConsoleMessage;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -64,48 +46,15 @@ import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.apache.commons.math3.linear.*;
-/*//import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.javacpp.BytePointer;
-import org.bytedeco.javacpp.DoublePointer;
-import org.bytedeco.javacpp.IntPointer;
-import org.bytedeco.javacpp.Pointer;
-import org.bytedeco.javacv.Java2DFrameConverter;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_face;
-import org.bytedeco.opencv.opencv_face.FisherFaceRecognizer;*/
-//import org.opencv.android.OpenCVLoader;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_java;
-import org.opencv.android.Utils;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.face.EigenFaceRecognizer;
-import org.opencv.face.FaceRecognizer;
-import org.opencv.face.FacemarkKazemi;
-import org.opencv.face.FacemarkLBF;
-import org.opencv.face.FisherFaceRecognizer;
-import org.opencv.features2d.DescriptorMatcher;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.ml.KNearest;
-import org.opencv.ml.Ml;
 import org.tensorflow.lite.TensorFlowLite;
 
 
@@ -114,9 +63,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private static final Logger LOGGER = new Logger();
     private ImageView mImageView;
     private ImageView mImageViewProcessed;
-    private Button mFaceButton;
-    private Button mTrainButton;
-    private Switch mGsSwitch, mRotSwitch, mEqSwitch, mCVSwitch, mNNAPISwitch, mGPUSwitch, mXNNSwitch;
+    private Button mFaceButton, mTrainButton, mBenchButton;
+    private Switch mGsSwitch, mRotSwitch, mEqSwitch, mCVSwitch, mBlurSwitch, mNNAPISwitch, mGPUSwitch, mXNNSwitch;
     private EditText mNThreads;
     private Bitmap mSelectedImage;
     private GraphicOverlay mGraphicOverlay;
@@ -134,10 +82,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private static final boolean TF_OD_API_IS_QUANTIZED = false;
     private static final String TF_OD_API_MODEL_FILE = "mobile_face_net.tflite";
 
-
     private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap.txt";
 
-    private static final DetectorMode MODE = DetectorMode.TF_OD_API;
+    //private static final DetectorMode MODE = DetectorMode.TF_OD_API;
     // Minimum detection confidence to track a detection.
     private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
 
@@ -164,6 +111,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         mRotSwitch = findViewById(R.id.rot_switch);
         mEqSwitch = findViewById(R.id.eq_switch);
         mCVSwitch = findViewById(R.id.cv_switch);
+        mBlurSwitch = findViewById(R.id.blur_switch);
         mNNAPISwitch = findViewById(R.id.nnapi_switch);
         mGPUSwitch = findViewById(R.id.gpu_switch);
         mXNNSwitch = findViewById(R.id.xnnpack_switch);
@@ -171,8 +119,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         mNThreads = findViewById(R.id.nthreads_input);
 
         mFaceButton = findViewById(R.id.button_face);
-
         mTrainButton = findViewById(R.id.button_train);
+        mBenchButton = findViewById(R.id.bench_button);
 
         mGraphicOverlay = findViewById(R.id.graphic_overlay);
 
@@ -191,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                     mXNNSwitch.setEnabled(true);
                 }
 
-                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked());
+                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked(), 4);
             }
         });
 
@@ -207,7 +155,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                     mXNNSwitch.setEnabled(true);
                 }
 
-                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked());
+                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked(), 4);
             }
         });
 
@@ -223,7 +171,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                     mNNAPISwitch.setEnabled(true);
                 }
 
-                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked());
+                useDelegates(mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked(), 4);
             }
         });
 
@@ -240,6 +188,11 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             public void onClick(View view) {
                 trainFace();
             }
+        });
+
+        mBenchButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) { Benchmark();}
         });
 
         try {
@@ -282,7 +235,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                             TF_OD_API_IS_QUANTIZED,
                             mNNAPISwitch.isChecked(),
                             mGPUSwitch.isChecked(),
-                            mXNNSwitch.isChecked()
+                            mXNNSwitch.isChecked(),
+                            4
                             );
         } catch (final IOException e) {
             e.printStackTrace();
@@ -295,12 +249,23 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         }
     }
 
-    private void useDelegates(boolean useNNAPI, boolean useGPU, boolean useXNNPack){
+    private void useDelegates(boolean useNNAPI, boolean useGPU, boolean useXNNPack, int numThreads){
         detector.ReInitModel(getAssets(),
                 TF_OD_API_MODEL_FILE,
                 useNNAPI,
                 useGPU,
-                useXNNPack);
+                useXNNPack,
+                numThreads);
+    }
+
+    private void Benchmark(){
+        Benchmark bm = new Benchmark(getAssets(), this, getPpOptions(),mNNAPISwitch.isChecked(), mGPUSwitch.isChecked(), mXNNSwitch.isChecked());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                bm.Run();
+            }
+        }).start();
     }
 
     private void trainFace(){
@@ -312,10 +277,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         InputImage image = InputImage.fromBitmap(mSelectedImage, 0);
         FaceDetectorOptions options =
                 new FaceDetectorOptions.Builder()
-                        //.setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
                         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                        //.setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
-                        //.setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
+                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
                         .build();
 
         mFaceButton.setEnabled(false);
@@ -333,8 +297,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                                         processFaceContourDetectionResult(faces);
                                     }
                                 }).start();
-                                //processFaceContourDetectionResult(faces);
-
                             }
                         })
                 .addOnFailureListener(
@@ -351,11 +313,22 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     boolean untrained = true;
 
+    private ImagePreProcessor.Options getPpOptions(){
+        ImagePreProcessor.Options ppOptions = new ImagePreProcessor.Options();
+        ppOptions.setEqualise(mEqSwitch.isChecked());
+        ppOptions.setGrayscale(mGsSwitch.isChecked());
+        ppOptions.setRotate(mRotSwitch.isChecked());
+        ppOptions.setBilateral(mBlurSwitch.isChecked());
+        ppOptions.setUseOpenCV(mCVSwitch.isChecked());
+
+        return ppOptions;
+    }
+
     private void processFaceContourDetectionResult(List<Face> faces) {
-        detector.setNumThreads(4);
+        //detector.setNumThreads(4);
 
         if (mGPUSwitch.isChecked()){
-            detector.ReInitModel(getAssets(), TF_OD_API_MODEL_FILE, false, true, false);
+            detector.ReInitModel(getAssets(), TF_OD_API_MODEL_FILE, false, true, false, 4);
         }
         // Task completed successfully
         if (faces.size() == 0) {
@@ -365,20 +338,13 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         ArrayList<Bitmap> processed_faces = new ArrayList<>();
 
-        //ArrayList<Thread> ts = new ArrayList<>();
-
         mGraphicOverlay.clear();
 
-        ImagePreProcessor.Options ppOptions = new ImagePreProcessor.Options();
-        ppOptions.setEqualise(mEqSwitch.isChecked());
-        ppOptions.setGrayscale(mGsSwitch.isChecked());
-        ppOptions.setRotate(mRotSwitch.isChecked());
-        ppOptions.setUseOpenCV(mCVSwitch.isChecked());
+        ImagePreProcessor.Options ppOptions = getPpOptions();
 
-        ImagePreProcessor imgProcessor = new ImagePreProcessor(ppOptions);
+        ImagePreProcessor imgProcessor = new ImagePreProcessor(ppOptions, getApplicationContext());
 
         for (Face face : faces) {
-            //Thread t = new Thread(new Runnable() {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -398,34 +364,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             }).run();
         }
 
-
         while (processed_faces.size() < faces.size());
-
-
-
-        /*//MatVector mv = new MatVector();
-
-        if ( train){
-            for (Bitmap face : processed_faces){
-                Mat mat = new Mat(face.getHeight(), face.getWidth(), CV_8UC4);
-
-// Convert Bitmap to Mat manually
-                ByteBuffer byteBuffer = ByteBuffer.allocate(face.getByteCount());
-                face.copyPixelsToBuffer(byteBuffer);
-                byteBuffer.position(0);
-                byte[] byteArray = new byte[byteBuffer.remaining()];
-                byteBuffer.get(byteArray);
-                mat.data().put(byteArray);
-
-// Convert the Mat to grayscale
-                cvtColor(mat, mat, CV_RGBA2GRAY);
-
-                mv.push_back(mat);
-            }
-        }*/
-
-
-
 
         for (int i = 0; i < processed_faces.size(); i++){
             Bitmap resized = processed_faces.get(i);
@@ -444,7 +383,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
                 id = Integer.toString(randomNum);
 
-                labels.add(randomNum);
+                //labels.add(randomNum);
 
                 cvFR.addFace(resized, randomNum);
 
@@ -462,20 +401,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
 
             } else {
-               /* IntPointer predictedLabel = new IntPointer(1);
-                DoublePointer predictedConfidence = new DoublePointer(1);
-
-                Mat mat = new Mat(resized.getHeight(), resized.getWidth(), CV_8UC4);
-
-// Convert Bitmap to Mat manually
-                ByteBuffer byteBuffer = ByteBuffer.allocate(resized.getByteCount());
-                resized.copyPixelsToBuffer(byteBuffer);
-                byteBuffer.position(0);
-                byte[] byteArray = new byte[byteBuffer.remaining()];
-                byteBuffer.get(byteArray);
-                mat.data().put(byteArray);
-
-                cvtColor(mat, mat, CV_RGBA2GRAY);*/
 
                 long startTime = System.nanoTime();
                 CVFaceRecognizer.Result result = cvFR.predict(resized);
@@ -483,7 +408,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
                 long elapsedTime = endTime - startTime;
 
-                Log.d("NSP debug", "Fisherface: P: " + Integer.toString(result.label) + " Confidence: "+ Double.toString(result.confidence) + " Predict time: " + elapsedTime);
+                Log.d("NSP debug", "LBPH: P: " + Integer.toString(result.label) + " Confidence: "+ Double.toString(result.confidence) + " Predict time: " + elapsedTime);
 
                 for (SimilarityClassifier.Recognition rec : results){
                     float distance = rec.getDistance();
@@ -524,30 +449,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         }
 
         if (train){
-            /*int[] labelsArray = new int[labels.size()];
-
-            for (int l = 0; l < labels.size(); l++){
-                labelsArray[l] = labels.get(l);
-            }
-
-            IntPointer labelsPointer = new IntPointer(labelsArray.length);
-
-            // Set the data in the IntPointer
-            labelsPointer.put(labelsArray);
-
-            // Create a Mat object from the IntPointer
-            Mat labelsMat = new Mat(labelsArray.length, 1, CV_32SC1, new Pointer(labelsPointer));
-
-            ff.train(mv, labelsMat);*/
 
             cvFR.train();
 
         }
-
-
-        //while (mGraphicOverlay.getNumGraphics() < faces.size()) {
-
-       // }
 
         train = false;
 

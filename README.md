@@ -12,7 +12,7 @@ Face Detection was implemented using Google's ML Kit with code being taken from 
 
 Image pre-processing was implemented twice, once using exclusively Java and Android's Graphics Library and again using OpenCV to compare performance.
 
-While some config options can be changes using the UI, many in this version can only be changed in the code and recompiling, apologies.
+While some config options can be changed using the UI, many in this version can only be changed in the code and recompiling, apologies.
 
 Benchmarks results, and stats can only be seen within Logcat.
 

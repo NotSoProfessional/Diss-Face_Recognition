@@ -15,6 +15,7 @@ limitations under the License.
 
 package com.google.codelab.mlkit.tflite;
 
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.RectF;
 
@@ -31,13 +32,18 @@ public interface SimilarityClassifier {
 
   void enableStatLogging(final boolean debug);
 
-  String getStatString();
-
   void close();
 
-  void setNumThreads(int num_threads);
+  //void setNumThreads(int num_threads);
 
   Long getInferenceTime();
+
+  Long getPredictTime();
+
+  void ReInitModel(final AssetManager assetManager,
+                   final String modelFilename,
+                   final boolean useNNAPI,
+                   final boolean useGPU, boolean useXNNPack, int numThreads);
 
   /** An immutable result returned by a Classifier describing what was recognized. */
   class Recognition {

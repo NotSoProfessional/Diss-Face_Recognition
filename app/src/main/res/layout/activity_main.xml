@@ -56,6 +56,7 @@
         android:id="@+id/button_face"
         android:layout_width="206dp"
         android:layout_height="50dp"
+        android:autoText="false"
         android:text="Find Face"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -91,6 +92,16 @@
         app:layout_constraintStart_toStartOf="@+id/image_view" />
 
     <Switch
+        android:id="@+id/blur_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="true"
+        android:text="@string/blur_switch"
+        app:layout_constraintBottom_toTopOf="@+id/spinner"
+        app:layout_constraintStart_toEndOf="@+id/eq_switch" />
+
+    <Switch
         android:id="@+id/rot_switch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -109,5 +120,57 @@
         android:text="@string/cv_switch"
         app:layout_constraintBottom_toTopOf="@+id/rot_switch"
         app:layout_constraintStart_toStartOf="@+id/image_view" />
+
+    <Switch
+        android:id="@+id/nnapi_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="false"
+        android:enabled="false"
+        android:text="@string/nnapi_switch"
+        app:layout_constraintBottom_toTopOf="@+id/cv_switch"
+        app:layout_constraintLeft_toRightOf="@+id/cv_switch"
+        app:layout_constraintStart_toStartOf="@+id/image_view" />
+
+    <Switch
+        android:id="@+id/gpu_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="false"
+        android:enabled="false"
+        android:text="@string/gpu_switch"
+        app:layout_constraintBottom_toTopOf="@+id/cv_switch"
+        app:layout_constraintLeft_toRightOf="@+id/cv_switch"
+        app:layout_constraintStart_toEndOf="@+id/nnapi_switch" />
+
+    <Switch
+        android:id="@+id/xnnpack_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:height="48dp"
+        android:checked="true"
+        android:text="@string/xnnpack_switch"
+        app:layout_constraintBottom_toTopOf="@+id/cv_switch"
+        app:layout_constraintLeft_toRightOf="@+id/cv_switch"
+        app:layout_constraintStart_toEndOf="@+id/gpu_switch" />
+
+    <EditText
+        android:id="@+id/nthreads_input"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="number"
+        tools:layout_editor_absoluteX="116dp"
+        tools:layout_editor_absoluteY="343dp" />
+
+    <Button
+        android:id="@+id/bench_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/benchmark"
+        app:layout_constraintBottom_toTopOf="@+id/image_view_processed"
+        app:layout_constraintEnd_toEndOf="@+id/image_view" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
